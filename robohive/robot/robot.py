@@ -181,6 +181,30 @@ class Robot():
 
 
     # get hardware sensors
+    def open_loop_sensors(self, act, last_control, dt):
+        current_sensor_value = {}
+        current_sensor_value['time'] = time.time() - self.time_start
+        self.time_wall = time.time()-self.time_start
+
+        for name, device in self.robot_config.items():
+            if 'sensor' in device.keys() and len(device['sensor'])>0:
+
+                if device['interface']['type'] == 'franka':
+                    vel = (last_control - act) / dt
+                    current_sensor_value[name] = np.append(act[:7], vel[:7])
+                else:
+                    print("ERROR: interface ({}) not found".format(device['interface']['type']))
+                    raise NotImplemented
+
+                # calibrate sensors
+                for id, sensor in enumerate(device['sensor']):
+                    current_sensor_value[name][id] = current_sensor_value[name][id]*sensor['scale'] + sensor['offset']
+                device['sensor_data'] = current_sensor_value[name]
+                device['sensor_time'] = current_sensor_value['time']
+        return current_sensor_value
+    
+
+    # get hardware sensors
     def hardware_get_sensors(self):
         current_sensor_value = {}
         current_sensor_value['time'] = time.time() - self.time_start
@@ -449,8 +473,8 @@ class Robot():
             imgs = np.zeros((len(cameras), height, width, 3), dtype=np.uint8)
             depths = np.zeros((len(cameras), height, width))
             for ind, cam in enumerate(cameras):
-                # img, depth = sim.render(width=width, height=height, depth=True, mode='offscreen', camera_name=cam, device_id=device_id)
-                img, depth = sim.renderer.render_offscreen(width=width, height=height, depth=True, camera_id=cam, device_id=device_id)
+                img, depth = sim.render(width=width, height=height, depth=True, mode='offscreen', camera_name=cam, device_id=device_id)
+                # img, depth = sim.renderer.render_offscreen(width=width, height=height, depth=True, camera_id=cam, device_id=device_id)
                 # img = img[::-1, :, :] # Image has to be flipped
                 imgs[ind, :, :, :] = img
                 depths[ind, :, :] = depth
@@ -671,9 +695,9 @@ class Robot():
         robot_type = 'hdr' if self.is_hardware else 'sim'
 
         # enforce limits
-        ctrl_feasible = self.process_actuator(controls=ctrl_desired, step_duration=step_duration,\
-             normalized=ctrl_normalized, position_limits=True, velocity_limits=True, out_space=robot_type)
-
+        ctrl_feasible = ctrl_desired #self.process_actuator(controls=ctrl_desired, step_duration=step_duration,\
+             #normalized=ctrl_normalized, position_limits=True, velocity_limits=True, out_space=robot_type)
+        
         # Send controls to the robot
         if self.is_hardware:
             self.hardware_apply_controls(ctrl_feasible)
@@ -756,8 +780,8 @@ class Robot():
             # Ideally we should use actuator/ reset mechanism as in the real world
             # but choosing to directly resetting sim for efficiency
             self.sim.reset()
-            self.sim.data.qpos[:] = feasibe_pos
-            self.sim.data.qvel[:] = feasibe_vel
+            self.sim.data.qpos[:9] = feasibe_pos[:9]
+            self.sim.data.qvel[:9] = feasibe_vel[:9]
             self.sim.forward() # ???Vik alternatively should following be called? functions.mj_step1(self.sim.model, self.sim.data)
 
             if _ROBOT_VIZ:

@@ -257,7 +257,12 @@ class MujocoEnv(gym.Env, gym.utils.EzPickle, ObsVecDict):
         Uses robot interface to safely step the forward respecting pos/ vel limits
         Accepts a(t) returns obs(t+1), rwd(t+1), done(t+1), info(t+1)
         """
-        a = np.clip(a, self.action_space.low, self.action_space.high)
+        # a = np.clip(a, self.action_space.low, self.action_space.high)
+        try:
+            open_loop_sen = self.robot.open_loop_sensors(a, self.last_ctrl, self.dt)
+            self.robot.sensor2sim(open_loop_sen, self.sim) # propagate sensor through sim
+        except AttributeError as e:
+            pass
         self.last_ctrl = self.robot.step(ctrl_desired=a,
                                         ctrl_normalized=self.normalize_act,
                                         step_duration=self.dt,
@@ -313,10 +318,10 @@ class MujocoEnv(gym.Env, gym.utils.EzPickle, ObsVecDict):
         Uses robot to get sensors, reconstructs the sim and recovers the sensors.
         """
         # get sensor data from robot
-        sen = self.robot.get_sensors()
+        # sen = self.robot.get_sensors()
 
-        # reconstruct (partially) observed-sim using (noisy) sensor data
-        self.robot.sensor2sim(sen, self.sim_obsd)
+        # # reconstruct (partially) observed-sim using (noisy) sensor data
+        # self.robot.sensor2sim(sen, self.sim_obsd)
 
         # get obs_dict using the observed information
         self.obs_dict = self.get_obs_dict(self.sim_obsd)
