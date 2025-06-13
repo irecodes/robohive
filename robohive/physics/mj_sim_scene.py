@@ -57,7 +57,7 @@ class DMSimScene(SimScene):
             self.sim.reset()
 
         if render:
-            # self.renderer.refresh_window()
+            self.renderer.refresh_window()
             self.renderer.render_to_window()
 
     def _create_renderer(self, sim: Any) -> MJRenderer:

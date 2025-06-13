@@ -41,8 +41,8 @@ def generate_joint_space_min_jerk(
 
     p_traj, pd_traj, pdd_traj = _min_jerk_spaces(steps, time_to_go)
 
-    D = goal - start
-    q_traj = start[None, :] + D[None, :] * p_traj[:, None]
+    D = goal[:9] - start[:9]
+    q_traj= start[None, :9] + D[None, :] * p_traj[:, None]
     qd_traj = D[None, :] * pd_traj[:, None]
     qdd_traj = D[None, :] * pdd_traj[:, None]
 
